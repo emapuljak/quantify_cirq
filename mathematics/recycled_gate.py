@@ -1,6 +1,6 @@
 import cirq
 
-class RecycledGate(cirq.ops.SingleQubitGate):
+class RecycledGate(cirq.Gate):
     """
         This is a gate that is used as a placeholder in the diagrams
     """

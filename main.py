@@ -6,63 +6,23 @@ import qramcircuits.bucket_brigade as bb
 import optimizers as qopt
 
 
-def main():
-    """
-    print("Hello QRAM circuits!")
+def main(n_qubits, decomp_scenario):
+        
+    #Create the qubits of the circuits
     
-    #Create the qubis of the circuits
-    
-    nr_qubits = 5
     qubits = []
-    for i in range(nr_qubits):
+    for i in range(n_qubits):
         qubits.append(cirq.NamedQubit("a" + str(i)))
 
-    # #
-    # #
-    # # #Create the search
-    # #
-    search = [0, 1, 2, 3]
-    # search = list(range(0, 15))
-    #
+    #Create the search
+    #search = [0, 1, 2, 3]
+    #search = list(range(0, 2**n_qubits-1))
+    
+    print("********* Bucket Brigade *********")
 
-    """
-       # Bucket brigade
-    """
-    print("*** Bucket Brigade:")
-
-    decomp_scenario = bb.BucketBrigadeDecompType(
-        [
-            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4_COMPUTE,    # fan_in_decomp
-            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4,  # mem_decomp
-            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_0_UNCOMPUTE,    # fan_out_decomp
-        ],
-        True
-    )
-
-    no_decomp = bb.BucketBrigadeDecompType(
-        [
-            ToffoliDecompType.NO_DECOMP,  # fan_in_decomp
-            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4,  # mem_decomp
-            ToffoliDecompType.NO_DECOMP,  # fan_out_decomp
-        ],
-        True
-    )
-
-
-    olivia_decomposition = bb.BucketBrigadeDecompType(
-        [
-            ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # fan_in_decomp
-            ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # mem_decomp
-            ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # fan_out_decomp
-        ],
-        False
-    )
-
-    bbcircuit = bb.BucketBrigade(qubits,
-                                 decomp_scenario = decomp_scenario)
-    #
-    # print(bbcircuit.circuit.to_text_diagram(use_unicode_characters=False,
-    #                                         qubit_order = bbcircuit.qubit_order))
+    bbcircuit = bb.BucketBrigade(qubits, decomp_scenario = decomp_scenario)
+    
+    print(bbcircuit.circuit.to_text_diagram(use_unicode_characters=False, qubit_order = bbcircuit.qubit_order))
 
     # #Verification
     print("Verify N_q:      {}\n".format(bbcircuit.verify_number_qubits()))
@@ -76,19 +36,18 @@ def main():
     print("Verify H_c:      {}\n".format(bbcircuit.verify_hadamard_count(
         Alexandru_scenario=decomp_scenario.parallel_toffolis))
     )
-    print("Verify CNOT_c:   {}\n".format(bbcircuit.verify_cnot_count(
-        Alexandru_scenario=olivia_decomposition.parallel_toffolis))
-    )
+    # print("Verify CNOT_c:   {}\n".format(bbcircuit.verify_cnot_count(
+    #     Alexandru_scenario=olivia_decomposition.parallel_toffolis))
+    # )
 
     # qopt.CommuteTGatesToStart().optimize_circuit(bbcircuit.circuit)
     #
-    # print(bbcircuit.circuit)
+    #print(bbcircuit.circuit)
 
     # qopt.SearchCNOTPattern().optimize_circuit(bbcircuit.circuit)
 
     # qopt.CancelNghCNOTs().apply_until_nothing_changes(bbcircuit.circuit,
     #                                                   cu.count_cnot_of_circuit)
-    # print(bbcircuit.circuit)
     # print("*** Large Depth Small Width:")
     # """
     # be sure while testing that the number of search values are a power of 2
@@ -127,36 +86,63 @@ def main():
         CLA example
     """
     # Size of the operand; At this stage always gives the even number >= to the wanted size
-    n = 10
-    A = [cirq.NamedQubit("A"+str(i)) for i in range(n)]
+    # n = 10
+    # A = [cirq.NamedQubit("A"+str(i)) for i in range(n)]
         
-        # Second operand
-    B = [cirq.NamedQubit("B"+str(i)) for i in range(n)]
+    #     # Second operand
+    # B = [cirq.NamedQubit("B"+str(i)) for i in range(n)]
     
-    # CLA class with the default decomposition strategy (NO_DECOMP)
-    decompositon_strategy = [(ToffoliDecompType.NO_DECOMP, ToffoliDecompType.NO_DECOMP)]*2
-    cl = CarryLookaheadAdder(A, B, decompositon_strategy=decompositon_strategy)
-    # Printing the CLA circuit
-    # print(cl.circuit)
+    # # CLA class with the default decomposition strategy (NO_DECOMP)
+    # decompositon_strategy = [(ToffoliDecompType.NO_DECOMP, ToffoliDecompType.NO_DECOMP)]*2
+    # cl = CarryLookaheadAdder(A, B, decompositon_strategy=decompositon_strategy)
+    # # Printing the CLA circuit
+    # # print(cl.circuit)
 
 
-    results = []
-    for n in range(8, 32, 2):
+    # results = []
+    # for n in range(8, 32, 2):
         
-        # First operand
-        A = [cirq.NamedQubit("A"+str(i)) for i in range(n)]
+    #     # First operand
+    #     A = [cirq.NamedQubit("A"+str(i)) for i in range(n)]
         
-        # Second operand
-        B = [cirq.NamedQubit("B"+str(i)) for i in range(n)]
+    #     # Second operand
+    #     B = [cirq.NamedQubit("B"+str(i)) for i in range(n)]
         
-        # CLA class with the default decomposition strategy (NO_DECOMP)
-        decompositon_strategy = [(ToffoliDecompType.NO_DECOMP, ToffoliDecompType.NO_DECOMP)]*2
-        cl = CarryLookaheadAdder(A, B, decompositon_strategy=decompositon_strategy)
-        # Printing the CLA circuit
-        results.append(len(cl.circuit))
-    print(results)
+    #     # CLA class with the default decomposition strategy (NO_DECOMP)
+    #     decompositon_strategy = [(ToffoliDecompType.NO_DECOMP, ToffoliDecompType.NO_DECOMP)]*2
+    #     cl = CarryLookaheadAdder(A, B, decompositon_strategy=decompositon_strategy)
+    #     # Printing the CLA circuit
+    #     results.append(len(cl.circuit))
+    # print(results)
 
 if __name__ == "__main__":
-    main()
+    n_qubits = 5
+    decomp_scenario = bb.BucketBrigadeDecompType(
+        [
+            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4_COMPUTE,    # fan_in_decomp
+            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4,  # mem_decomp
+            ToffoliDecompType.ZERO_ANCILLA_TDEPTH_0_UNCOMPUTE,    # fan_out_decomp
+        ],
+        True
+    )
+    # no_decomp = bb.BucketBrigadeDecompType(
+    #     [
+    #         ToffoliDecompType.NO_DECOMP,  # fan_in_decomp
+    #         ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4,  # mem_decomp
+    #         ToffoliDecompType.NO_DECOMP,  # fan_out_decomp
+    #     ],
+    #     True
+    # )
+
+
+    # olivia_decomposition = bb.BucketBrigadeDecompType(
+    #     [
+    #         ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # fan_in_decomp
+    #         ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # mem_decomp
+    #         ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A,    # fan_out_decomp
+    #     ],
+    #     False
+    # )
+    main(n_qubits = n_qubits, decomp_scenario=decomp_scenario)
 
 

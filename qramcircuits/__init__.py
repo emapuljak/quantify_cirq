@@ -3,3 +3,8 @@ from .toffoli_decomposition import (
     ToffoliDecomposition, 
     
 )
+
+from .bucket_brigade import (
+    BucketBrigadeDecompType,
+    BucketBrigade
+)

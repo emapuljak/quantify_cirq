@@ -24,13 +24,13 @@ class CirqPyZX:
     qubit_id_to_zx_id = {}
 
     # Identifying each cirq qubit with a PyZX qubit
-    for i,key in enumerate(qubits):
+    for i, key in enumerate(qubits):
       qubit_id_to_zx_id[key] = i
     
     # In each moment in the Cirq circuit identify the operations, the involved qubits 
     # and do the corresponding operation in PyZX
     # The supported operations are {T, X, Toffoli, CNOT, Z, CZ, H, S, CCZ and their inverse}
-    for moment in circuit:
+    for moment in circuit.moments:
       for op in moment:
         if isinstance(op, cirq.GateOperation) and op.gate == cirq.T:
           qbts = op.qubits
@@ -41,7 +41,7 @@ class CirqPyZX:
           qbts = op.qubits
           key = qbts[0]
           self.circuit_zx.add_gate(zx.gates.T(qubit_id_to_zx_id[key], adjoint=True))
-
+        
         elif isinstance(op, cirq.GateOperation) and op.gate == cirq.X:
           qbts = op.qubits
           key = qbts[0]
@@ -51,22 +51,22 @@ class CirqPyZX:
           qbts = op.qubits
           key = qbts[0]
           self.circuit_zx.add_gate(zx.gates.HAD(qubit_id_to_zx_id[key]))
-
+        
         elif isinstance(op, cirq.GateOperation) and op.gate == cirq.Z:
           qbts = op.qubits
           key = qbts[0]
           self.circuit_zx.add_gate(zx.gates.Z(qubit_id_to_zx_id[key]))
-
+        
         elif isinstance(op, cirq.GateOperation) and op.gate == cirq.S:
           qbts = op.qubits
           key = qbts[0]
           self.circuit_zx.add_gate(zx.gates.S(qubit_id_to_zx_id[key]))
-
+        
         elif isinstance(op, cirq.GateOperation) and op.gate == cirq.S**-1:
           qbts = op.qubits
           key = qbts[0]
           self.circuit_zx.add_gate(zx.gates.S(qubit_id_to_zx_id[key], adjoint=True))
-
+        
         elif isinstance(op, cirq.GateOperation) and op.gate == cirq.CNOT:
           qbts = op.qubits
           ctrl, trgt = qbts[0], qbts[1]
@@ -89,7 +89,7 @@ class CirqPyZX:
         
         elif not isinstance(op, cirq.GateOperation):
           raise TypeError("{!r} is not a gate operation.".format(op))
-
+        
         else:
           raise TypeError("gate operation {!r} is not supported.".format(op))
 
@@ -112,14 +112,17 @@ class CirqPyZX:
       Optimize the circuit using PyZX full_reduce optimization function
     """
     # transforming the PyZX circuit to a graph
+    print(f'Tcount before optimization: {self.circuit_zx.tcount()}')
     graph = self.circuit_zx.to_graph()
-    zx.full_reduce(graph, quiet=True) 
+    zx.simplify.full_reduce(graph)
+    #graph = zx.simplify.teleport_reduce(graph.copy())
     
     # Optimizing the graph
     graph.normalize()
 
     # Extracting the circuit from the optimized graph
     self.circuit_zx = zx.extract_circuit(graph.copy())
+    print(f'Tcount after optimization: {self.circuit_zx.tcount()}')
     return self.circuit_zx
 
 

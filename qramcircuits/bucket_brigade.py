@@ -7,6 +7,8 @@ import utils.misc_utils as miscutils
 
 import optimizers as qopt
 import numpy as np
+import math
+import cirq
 
 class BucketBrigadeDecompType:
     def __init__(self, toffoli_decomp_types, parallel_toffolis):
@@ -40,8 +42,9 @@ class BucketBrigade():
 
     def __init__(self, qubits, decomp_scenario):
 
+        if qubits == None or decomp_scenario == None:
+            raise ValueError('Bucket Brigade circuit needs to have both qubits and decomposition scenario provided!')
         self._qubit_order = []
-
         self.decomp_scenario = decomp_scenario
         self.qubits = qubits
         self.size_adr_n = len(qubits)
@@ -52,6 +55,9 @@ class BucketBrigade():
         # qopt.CancelNghCNOTs().apply_until_nothing_changes(self.circuit,
         #                                                   count_cnot_of_circuit)
 
+    def all_qubits(self):
+        return self.qubit_order
+        
     @staticmethod
     def optimise_h_and_cnot(circuit_1):
         # Allow the optimization of Hadamard gates
@@ -77,6 +83,59 @@ class BucketBrigade():
 
     def get_b_ancilla_name(self, i, n):
         return "b_" + str(miscutils.my_bin(i, n))
+
+    def get_moments(self):
+        return self.circuit.moments
+
+    def get_depth(self):
+        return len(self.circuit)
+
+    def set_circuit(self, circuit):
+        self.circuit = circuit
+
+    def copy(self):
+        copy_bbcircuit = BucketBrigade(self.qubits, self.decomp_scenario)
+        copy_bbcircuit.circuit = self.circuit
+        return copy_bbcircuit
+
+    def remove_T_gates(self, percentage, inplace=True, one_per_layer=False):
+        # Arbitrarily remove "percentage" amount of T gates from circuit
+
+        if percentage >= 1.0:
+            raise ValueError('Percentage needs to be lower then 100%.')
+
+        moments_list = self.get_moments()
+        circuit_depth = self.get_depth()
+
+        T_count, T_positions = count_ops(self.circuit, [cirq.T, cirq.T**-1], return_indices=True) # number of T gates in circuit
+        print(f'All positions of T gates: {T_positions}')
+        gate_count = count_num_gates(self.circuit) # total number of gates
+        remove_count = int(math.ceil(T_count*percentage)) # number of T gates to remove
+        
+        # randomly pick indices to remove
+        random_indices_to_remove = np.random.choice(T_positions, size=remove_count, replace=False)
+        print(f'Removed positions of T gates: {random_indices_to_remove}')
+
+        new_moments = []; position = 0
+        for moment in moments_list:
+            moment_ops = []
+            for operation in moment:
+                position += 1
+                
+                if position not in random_indices_to_remove:
+                    moment_ops.append(operation)
+                    
+            new_moments.append(cirq.Moment(moment_ops))
+
+        if inplace:
+            # sets bucket brigade circuit inplace
+            self.circuit = cirq.Circuit(new_moments)
+            return
+        else:
+            # returns instance "Circuit" and then we need to set it up
+            circuit = cirq.Circuit(new_moments)
+            return circuit
+        
 
     def construct_fan_structure(self, qubits):
         n = len(qubits)
@@ -150,6 +209,7 @@ class BucketBrigade():
         # first part of the circuit (in case n = 2)
 
         circuit = cirq.Circuit()
+        self.moments=[]
 
         # number of qubits
         n = len(qubits)
@@ -186,7 +246,6 @@ class BucketBrigade():
                 construct_decomposed_moments(compute_fanin_moments,
                                              self.decomp_scenario.dec_fan_in)
         )
-
         # If necessary, parallelise the Toffoli decompositions
         if self.decomp_scenario.parallel_toffolis:
             comp_fan_in = BucketBrigade.parallelise_toffolis(comp_fan_in)
@@ -219,10 +278,11 @@ class BucketBrigade():
                                              self.decomp_scenario.dec_mem,
                                              permutation)
         )
+        
         if self.decomp_scenario.dec_mem in [ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_A, ToffoliDecompType.FOUR_ANCILLA_TDEPTH_1_B, ToffoliDecompType.ZERO_ANCILLA_TDEPTH_4]:
             BucketBrigade.optimise_h_and_cnot(memory_decomposed)
 
-            # If necessary, parallelise the Toffoli decompositions
+        # If necessary, parallelise the Toffoli decompositions
         if self.decomp_scenario.parallel_toffolis:
             memory_decomposed = BucketBrigade.parallelise_toffolis(memory_decomposed)
 
@@ -290,9 +350,6 @@ class BucketBrigade():
 
             qopt.ParallelizeCNOTSToLeft().optimize_circuit(circuit_2)
 
-            # print(circuit_2)
-
-            # print("... reinsert")
             circuit_2 = cirq.Circuit(circuit_2.all_operations()
                                      # ,strategy=cirq.InsertStrategy.NEW
                                      )
@@ -329,7 +386,7 @@ class BucketBrigade():
         # The total number of qubits from the circuit
         circ_qubits = len(self.circuit.all_qubits())
 
-        # print("have {} == {} should".format(circ_qubits, formula_from_paper))
+        print("have {} == {} should".format(circ_qubits, formula_from_paper))
         verif = (circ_qubits == formula_from_paper)
         return verif
 
@@ -457,7 +514,7 @@ class BucketBrigade():
 
         nr_t = count_t_of_circuit(self.circuit)
 
-        # print("have {} == {} should".format(nr_t, formula_from_paper))
+        print("have {} == {} should".format(nr_t, formula_from_paper))
         verif = (formula_from_paper == nr_t)
         return verif
 
