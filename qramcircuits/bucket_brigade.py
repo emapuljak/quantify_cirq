@@ -108,13 +108,11 @@ class BucketBrigade():
         circuit_depth = self.get_depth()
 
         T_count, T_positions = count_ops(self.circuit, [cirq.T, cirq.T**-1], return_indices=True) # number of T gates in circuit
-        print(f'All positions of T gates: {T_positions}')
         gate_count = count_num_gates(self.circuit) # total number of gates
         remove_count = int(math.ceil(T_count*percentage)) # number of T gates to remove
         
         # randomly pick indices to remove
         random_indices_to_remove = np.random.choice(T_positions, size=remove_count, replace=False)
-        print(f'Removed positions of T gates: {random_indices_to_remove}')
 
         new_moments = []; position = 0
         for moment in moments_list:

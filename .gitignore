@@ -1,4 +1,5 @@
 .idea/
+tests/results/*
 .venv/
 __pycache__
 experimental

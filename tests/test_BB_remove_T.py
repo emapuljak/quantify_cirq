@@ -1,5 +1,8 @@
+import os
 import argparse
 import cirq
+import pandas as pd
+from pathlib import Path
 from qramcircuits import bucket_brigade as bb
 from qramcircuits.toffoli_decomposition import ToffoliDecompType, ToffoliDecomposition
 from utils.counting_utils import *
@@ -11,7 +14,6 @@ def state_preparation(circuit, initial_state):
     # circuit = BB circuit instance
 
     qubits = circuit.qubits
-    print(qubits)
     init_ops = []
         
     for i, b in enumerate(initial_state):
@@ -54,7 +56,7 @@ def verify_counts(circuit_1, circuit_2, decomp_scenario):
     print("Verify H_count:      {}\n".format(circuit_2.verify_hadamard_count(
         Alexandru_scenario=decomp_scenario.parallel_toffolis)))
     
-def test_remove_T(bbcircuit, initial_state, percentage=0.2, inplace=True, repetitions=1000, save=True):
+def test_remove_T(bbcircuit, initial_state, percentage=0.2, inplace=True, repetitions=1000):
     bb_circuit = state_preparation(circuit = bbcircuit, initial_state=initial_state)
 
     bbcircuit_modified = bbcircuit.copy()
@@ -65,19 +67,20 @@ def test_remove_T(bbcircuit, initial_state, percentage=0.2, inplace=True, repeti
         bbcircuit_modified.set_circuit(circuit)
     
     # measuring addressing qubits
-    bbcircuit.circuit.append(cirq.measure(bbcircuit.all_qubits()[0], key=bbcircuit.all_qubits()[0].name)) # original circuit
-    bbcircuit.circuit.append(cirq.measure(bbcircuit.all_qubits()[1], key=bbcircuit.all_qubits()[1].name)) # original circuit
+    measure_names_o = []; measure_names_m = []
+    for i, _ in enumerate(initial_state):
+        bbcircuit.circuit.append(cirq.measure(bbcircuit.all_qubits()[i], key=bbcircuit.all_qubits()[i].name)) # original circuit
+        measure_names_o.append(bbcircuit.all_qubits()[i].name)
+        bbcircuit_modified.circuit.append(cirq.measure(bbcircuit_modified.all_qubits()[i], key=bbcircuit_modified.all_qubits()[i].name)) # modified circuit
+        measure_names_m.append(bbcircuit_modified.all_qubits()[i].name)
     
-    bbcircuit_modified.circuit.append(cirq.measure(bbcircuit_modified.all_qubits()[0], key=bbcircuit_modified.all_qubits()[0].name)) # modified circuit
-    bbcircuit_modified.circuit.append(cirq.measure(bbcircuit_modified.all_qubits()[1], key=bbcircuit_modified.all_qubits()[1].name)) # modified circuit
-
     # for original circuit
-    result_origin, freq_origin = execute_circuit(bbcircuit.circuit, repetitions=repetitions, measurement_qubit_names=[bbcircuit.all_qubits()[0].name, bbcircuit.all_qubits()[1].name])
+    result_origin, freq_origin = execute_circuit(bbcircuit.circuit, repetitions=repetitions, measurement_qubit_names=measure_names_o)
     print("Results:")
     print(freq_origin)
 
     # for modified circuit
-    result_mod, freq_mod = execute_circuit(bbcircuit_modified.circuit, repetitions=repetitions, measurement_qubit_names=[bbcircuit_modified.all_qubits()[0].name, bbcircuit_modified.all_qubits()[1].name])
+    result_mod, freq_mod = execute_circuit(bbcircuit_modified.circuit, repetitions=repetitions, measurement_qubit_names=measure_names_m)
     print(f'Results when removing {percentage*100}% of T gates:')
     print(freq_mod)
 
@@ -132,13 +135,7 @@ if __name__ == "__main__":
         description="Read arguments for testing removal of percentage of T gates in Bucket Brigate QRAM circuit."
     )
     parser.add_argument(
-        "--n_qubits", dest="n_qubits", type=int, help="Number of addressing qubits"
-    )
-    parser.add_argument(
         "--decomp_scenario", dest="decomp_scenario", type=str, help="Decomposition scenario for creating BB circuit"
-    )
-    parser.add_argument(
-        "--initial_state", dest="initial_state", type=str, default='00', help="Initial state of addressing qubits"
     )
     parser.add_argument(
         "--percentage", dest="percentage", type=float, default=0.2, help="Percentage of T gates to remove"
@@ -150,18 +147,42 @@ if __name__ == "__main__":
         "--repetitions", dest="repetitions", type=int, default=1000, help="Repetitions for executing a quantum circuit"
     )
     parser.add_argument(
-        "--save", dest="save", type=bool, default=True, help="Save results"
+        "--save_dir", dest="save_dir", type=str, default='results', help="Directory for saving results"
     )
 
     args = parser.parse_args()
-    
-    decomp_scenario = choose_decomposition(args.decomp_scenario)
 
-    bbcircuit = create_BB_circuit(args.n_qubits, decomp_scenario)
+    # if save_dir doesn't exist create it
+    if os.path.exists(args.save_dir) is False:
+        os.system(f"mkdir {args.save_dir}")
+        
+    # check removal of T gates for number of qubits from 2 to 3
+    for n_qubits in range(2, 4):
+        print(f'-------- nqubits: {n_qubits} --------')
+        # create decomposition scenario
+        decomp_scenario = choose_decomposition(args.decomp_scenario)
 
-    if len(args.initial_state) == args.n_qubits:
-        raise ValueError('Initial binary input needs to have same number of bits as number of qubits specified.')
-    
-    bbcircuit, bbcircuit_modified = test_remove_T(bbcircuit, args.initial_state, args.percentage, args.inplace, args.repetitions, args.save)
+        # create dictionary to store results
+        save_data = dict()
+        save_data['input'] = []; save_data['output original'] = []; save_data['output modified'] = []
 
-    verify_counts(bbcircuit, bbcircuit_modified, decomp_scenario)
+        # for every binary string of n_qubits -> check results
+        for initial_state in create_binary_strings(n_qubits):
+            print(f'-------- initial state: {initial_state} --------')
+
+            # create BBcircuit with specified number of qubits
+            bbcircuit = create_BB_circuit(n_qubits=n_qubits, decomp_scenario=decomp_scenario)
+
+            # test removal of "percentage" of T gates
+            bbcircuit, bbcircuit_modified, freq_origin, freq_mod = test_remove_T(bbcircuit, initial_state=initial_state, percentage=args.percentage, inplace=args.inplace, repetitions=args.repetitions)
+            
+            # gather results
+            save_data['input'].append(initial_state)
+            save_data['output original'].append(dict(freq_origin))
+            save_data['output modified'].append(dict(freq_mod))
+        
+        # save results for specific qubit
+        dataframe = pd.DataFrame(save_data)
+        save_name = f'{args.save_dir}/nqubits_{n_qubits}_percentage_{args.percentage*100}.csv'
+        dataframe.to_csv(save_name, index=False)  
+        #verify_counts(bbcircuit, bbcircuit_modified, decomp_scenario)
