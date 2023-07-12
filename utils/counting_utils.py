@@ -26,6 +26,8 @@ def count_op_depth(circuit, gate_types):
 def count_ops(circuit, gate_types, return_indices=False):
     op_count = 0
     position = 0
+
+    # if return indices is True then function will remove positions of gate_types in quantum circuit
     if return_indices:
         ops_indices=[]
         

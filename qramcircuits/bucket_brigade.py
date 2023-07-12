@@ -98,15 +98,31 @@ class BucketBrigade():
         copy_bbcircuit.circuit = self.circuit
         return copy_bbcircuit
 
-    def remove_T_gates(self, percentage, inplace=True, one_per_layer=False):
-        # Arbitrarily remove "percentage" amount of T gates from circuit
+    def remove_T_gates(self, percentage, inplace=True):
+        """Remove percentage amount of T gates.
 
+        Parameters
+        ----------
+        percentage: float
+            Percentage specifying the amount of T gates removed. From range 0-1.
+        inplace: bool
+            Flag specifying is bbcircuit modified in place or the function for removing T gates returns modified circuit as parameter. Default=True.\
+            Better to always keep True.
+        
+        Returns
+        -------
+        circuit with removed T gates
+
+        """
+
+        # percentage needs to be lower or equal then 100%
         if percentage >= 1.0:
             raise ValueError('Percentage needs to be lower then 100%.')
 
+        # get moments of bbcircuit
         moments_list = self.get_moments()
-        circuit_depth = self.get_depth()
 
+        # find how many T gates there are and what are their position
         T_count, T_positions = count_ops(self.circuit, [cirq.T, cirq.T**-1], return_indices=True) # number of T gates in circuit
         gate_count = count_num_gates(self.circuit) # total number of gates
         remove_count = int(math.ceil(T_count*percentage)) # number of T gates to remove
@@ -114,6 +130,7 @@ class BucketBrigade():
         # randomly pick indices to remove
         random_indices_to_remove = np.random.choice(T_positions, size=remove_count, replace=False)
 
+        # create new_moments to store gates
         new_moments = []; position = 0
         for moment in moments_list:
             moment_ops = []
@@ -122,7 +139,7 @@ class BucketBrigade():
                 
                 if position not in random_indices_to_remove:
                     moment_ops.append(operation)
-                    
+
             new_moments.append(cirq.Moment(moment_ops))
 
         if inplace:

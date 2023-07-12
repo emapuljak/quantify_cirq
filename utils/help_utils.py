@@ -1,4 +1,6 @@
 import itertools
+
+# helper function from google to create binary strings for all combinations for n bits
 def create_binary_strings(n):
     bin_array = list(itertools.product([0, 1], repeat=n))
     bin_strings = []
