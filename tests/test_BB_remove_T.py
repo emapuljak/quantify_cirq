@@ -6,6 +6,7 @@ from pathlib import Path
 from qramcircuits import bucket_brigade as bb
 from qramcircuits.toffoli_decomposition import ToffoliDecompType, ToffoliDecomposition
 from utils.counting_utils import *
+from utils.help_utils import *
 
 def bitstring(bits):
     return ''.join(str(int(b)) for b in bits)
